@@ -1,0 +1,3 @@
+Hi {{ username }}!
+You are almost there, {{ username }}!
+Please click the following link to confirm your account: {{ activate_url }}

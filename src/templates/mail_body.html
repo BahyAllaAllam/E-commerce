@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Account Activation</title>
+</head>
+<body>
+<div>
+    <div class="container" style="margin:10px; padding:10px; border-radius:5px; border: 1px solid rgb(204, 203, 203);">
+        <div style="background-color:rgb(110, 3, 211); border-radius:15px;">
+            <h1 style="text-align:center; padding:2px; color:white;">Account Activation</h1>
+        </div>
+        <div style="margin-top: 10px; text-align:left; line-height:1.5; font-family:'Montserrat', sans-serif;">
+            <h1>Hi {{ username }}<br>You are almost there</h1>
+            <p style="font-weight:bold;">You received this mail because you attempted to make account on our website,
+                Please click on the link below to confirm your email and activate your account</p>
+            <!--<h2 style="margin-top:20px">Please click <a href="{{ activate_url }}">here</a> to confirm your account</h2>-->
+        </div>
+        <div style="text-align:center; margin-top:20px; font-family:'Montserrat', sans-serif;">
+            <a style="padding:10px; padding-left:35px; padding-right:35px; background-color:rgb(110, 3, 211); color:white; border-radius:25px;" href="{{ activate_url }}" target="_blank">Click Me</a>
+        </div>
+        <div style="text-align:left">
+            <p style="margin-top:50px; font-weight:bold;">You'll be able to join us right after the verification<br>
+            <br>Thanks for joining<br>
+            <br>This mail machine generated, Do not reply to this mail</p><br>
+        </div>
+    </div>
+</div>
+</body>
+</html>

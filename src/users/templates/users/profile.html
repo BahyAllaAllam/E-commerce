@@ -1,0 +1,28 @@
+{% extends "base_generic.html" %}
+{% load bootstrap4 %}
+
+{% block title %}
+    {{ user.username.capitalize }} Profile
+{% endblock %}
+
+{% block content %}
+<div class="media">
+    <img class="rounded-circle account-img" src="{{ user.profile.image.url }}" alt="{{ user.username }} Profile Picture">
+    <div class="media-body">
+        <h2 class="account-heading">{% if user.get_full_name %} {{ user.get_full_name }} ({{ user.username.capitalize }}){% else %}{{ user.username.capitalize }}{% endif %}
+        </h2>
+        <p class="text-secondary">{{ user.email }}</p>
+        <a class="btn btn-outline-info btn-sm mt-1 mb-1" href="{% url 'users:change_email' user.username%}">Change Email</a>
+    </div>
+</div>
+<form method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+    <legend class="border-bottom mb-4 text-center">Profile Info</legend>
+    {% bootstrap_form u_form %}
+    {% bootstrap_form p_form %}
+    {% buttons %}
+        <button class="btn btn-outline-info w-100 btn-lg" type="submit">Update</button>
+        <a class="btn btn-outline-danger w-100 mt-2 btn-lg" href="{% url 'users:delete-user' user.username%}">Delete</a>
+    {% endbuttons %}
+</form>
+{% endblock %}

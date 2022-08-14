@@ -1,0 +1,22 @@
+{% extends "base_generic.html" %}
+{% load bootstrap4 %}
+
+{% block title %}
+  Delete {{user.username.capitalize}} Account
+{% endblock title %}
+
+{% block content %}
+<div class="content-section">
+    <form method="POST">
+      {% csrf_token %}
+      <div class="text-center">
+      <legend class="border-bottom mb-4">Delete Confirmation</legend>
+      <h2>Are you sure you want to delete your account {{ user.username.capitalize }}?</h2>
+      </div>
+      <div class="form-groub text-center">
+        <button class="btn btn-outline-danger" type="submit">Yes, Delete</button>
+        <a class="btn btn-outline-secondary" href="{% url 'users:profile'%}">Cancel</a>
+      </div>
+    </form>
+</div>
+{% endblock %}
