@@ -18,67 +18,66 @@ def activate(request, uidb64, token):
         user = User.objects.get(pk=uid)
     except(TypeError, ValueError, OverflowError, User.DoesNotExist):
         user = None
-    if user is not None and account_activation_token.check_token(user, token):
+    if user and account_activation_token.check_token(user, token):
         user.is_active = True
         user.save()
-        messages.success(request, f'Your account has been successfully activated! You are now able to login { user.username } !')
+        messages.success(request, f'Your account has been successfully activated! You are now able to login {user.username} !')
         return redirect('login')
         # return HttpResponse('Thank you for your email confirmation. Now you can login your account.')
     else:
         messages.warning(request, 'The activation link is invalid!')
-        return redirect('login')
-
+        return redirect('users:register')
 
 
 def register(request):
-    emails= User.objects.filter(is_active=True).exclude(email='').values_list('email', flat=True)
+    # emails = User.objects.filter(is_active=True).exclude(email='').values_list('email', flat=True)
     if request.user.is_authenticated:
         messages.success(request, 'You have to logout first!')
         return redirect('/')
 
-    if request.method=="POST":
+    if request.method == "POST":
         form = UserRegisterForm(request.POST)
 
         if form.is_valid():
             user = form.save(commit=False)
-            username= form.cleaned_data.get("username")
-            email= form.cleaned_data.get('email')
-            user.is_active= False
+            username = form.cleaned_data.get("username")
+            email = form.cleaned_data.get('email')
+            user.is_active = False
             user.save()
-            #context= {'user':user, 'username':username, 'email': email}
+            # context= {'user':user, 'username':username, 'email': email}
             activate_user(request, user, email, username)
             return redirect('login')
     else:
         form = UserRegisterForm()
 
-    return render(request, "users/register.html", {'form':form})
+    return render(request, "users/register.html", {'form': form})
 
 
 @login_required
 def change_email(request, username):
     user = request.user
-    old_email= request.user.email
+    old_email = request.user.email
     if request.method == 'POST':
         e_form = EmailChangeForm(request.POST, instance=request.user)
         if e_form.is_valid():
             email = e_form.cleaned_data.get('email')
             if email == old_email:
                 messages.warning(request, 'Please Enter A Different Email Address !')
-                return redirect('users:change_email')
+                return redirect('users:change_email', user.username)
             e_form.save(commit=False)
             request.user.is_active = False
             e_form.save()
             activate_user(request, user, email)
             return redirect('login')
         messages.success(request, 'Please write a valid email.')
-        return redirect('users:change_email')
+        return redirect('users:change_email', user.username)
     e_form = EmailChangeForm(instance=request.user)
-    return render(request, 'users/change_email.html', {'e_form': e_form, 'user':user})
+    return render(request, 'users/change_email.html', {'e_form': e_form, 'user': user})
 
 
 def activate_user(request, *args):
-    user= args[0]
-    email= args[1]
+    user = args[0]
+    email = args[1]
 
     current_site = get_current_site(request)
     link_content = {
@@ -103,7 +102,7 @@ def activate_user(request, *args):
     )
     email_message.attach_alternative(html_content, "text/html")
     email_message.send(fail_silently=False)
-    messages.success(request, 'we have sent you an email to verify your account, please check your mail!')
+    messages.success(request, 'We have sent you an email to verify your account, please check your mail!')
     return redirect('login')
 
 
@@ -127,6 +126,7 @@ def profile(request):
     }
     return render(request, 'users/profile.html', context)
 
+
 @login_required
 def delete_user(request, username):
     user = User.objects.get(username=username)
@@ -135,7 +135,7 @@ def delete_user(request, username):
             user.delete()
             messages.success(request, 'Your account has been deleted successfully !')
             return redirect('/')
-        return render(request, 'users/delete_user.html', {'user':user})
+        return render(request, 'users/delete_user.html', {'user': user})
     else:
-        messages.warning(request, 'Oooops you do not have permission to do that!')
+        messages.warning(request, 'Oops you do not have permission to do that!')
         return redirect('users:profile')

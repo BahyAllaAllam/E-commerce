@@ -10,5 +10,4 @@ urlpatterns = [
     path("profile/", views.profile, name="profile"),
     path('profile/<str:username>/edit/email', views.change_email, name='change_email'),
     path('profile/<str:username>/delete', views.delete_user, name='delete-user'),
-
 ]
