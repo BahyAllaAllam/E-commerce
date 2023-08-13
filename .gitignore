@@ -2,12 +2,14 @@
 src/.env
 src/.idea/
 src/Ecommerce/__pycache__/
+src/Ecommerce/
+src/htmlcov
+src/media
+src/store/migrations
 src/auctions/__pycache__/
 src/auctions/migrations/
 src/db.sqlite3
 src/users/__pycache__/
-src/users/migrations/__pycache__/
-src/Ecommerce/__init__.py
-src/auctions/__init__.py
 src/users/__init__.py
 src/users/migrations/
+src/.coverage

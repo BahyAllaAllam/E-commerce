@@ -22,8 +22,7 @@ urlpatterns = [
     path("accounts/", include('django.contrib.auth.urls')),
     path("accounts/", include("users.urls", namespace='users')),
     path("admin/", admin.site.urls),
-    path("", include("auctions.urls", namespace='auctions')),
-
+    path("", include("store.urls", namespace='store')),
 ]
 
 if settings.DEBUG:

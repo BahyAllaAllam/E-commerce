@@ -2,10 +2,12 @@ from django.db import models
 from PIL import Image
 from pathlib import Path
 import os
-# Overwrite the email field in the user model to set the unique value equals to true
+
 from django.contrib.auth.models import User
 
+# Overwrite the email field in the user model to set the unique value equals to true
 User._meta.get_field('email')._unique = True
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -36,3 +38,13 @@ class Profile(models.Model):
             output_size = (300, 300)
             rgb_img.thumbnail(output_size)
             rgb_img.save(self.image.path)
+
+    def full_name(self):
+        return f"{self.user.first_name} {self.user.last_name}"
+
+    @staticmethod
+    def get_customer_by_email(email):
+        try:
+            return Customer.objects.get(email=email)
+        except:
+            return False

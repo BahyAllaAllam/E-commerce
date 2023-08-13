@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}
+    Checkout
+{% endblock %}
+{% block body %}
+<div class="col-lg-6">
+    <div class="box-element" id="form-wrapper">
+        <form id="form">
+            <legend>User Info:</legend>
+            <hr>
+            <div id="user-info">
+                <div class="form-field">
+                    <input required class="form-control" type="text" name="name" placeholder="Name..">
+                </div>
+                <div class="form-field">
+                    <input required class="form-control" type="email" name="email" placeholder="Email..">
+                </div>
+            </div>
+            <div id="shipping-info">
+                <br>
+                <legend>Shipping Info:</legend>
+                <hr>
+                <div class="form-field">
+                    <input class="form-control" type="text" name="address" placeholder="Address..">
+                </div>
+                <div class="form-field">
+                    <input class="form-control" type="text" name="city" placeholder="City..">
+                </div>
+                <div class="form-field">
+                    <input class="form-control" type="text" name="state" placeholder="State..">
+                </div>
+                <div class="form-field">
+                    <input class="form-control" type="text" name="zipcode" placeholder="Zip code..">
+                </div>
+                <div class="form-field">
+                    <input class="form-control" type="text" name="country" placeholder="Zip code..">
+                </div>
+            </div>
+            <br>
+            <input id="form-button" class="btn btn-outline btn-block checkout-btn" type="submit" value="Continue">
+        </form>
+    </div>
+    <div class="box-element paypal" id="payment-info">
+        <small>
+            Paypal Option
+        </small>
+    </div>
+</div>
+<div class="col-lg-6">
+    <div class="box-element">
+        <h3>Order Summary</h3>
+        <hr>
+        <div class="cart-row">
+            <h5 class="item-img">Picture</h5>
+            <h5 class="item-name">Name</h5>
+            <h5 class="item-price">Price</h5>
+            <h5 class="item-quantity">Quantity</h5>
+            <h5 class="item-total">Total Price</h5>
+        </div>
+        <hr>
+        <div class="cart-row">
+            <div class="item-img"><img src="https://via.placeholder.com/100x50.png"></div>
+            <h6 class="item-name">Product 1</h6>
+            <h6 class="item-price">$20.00</h6>
+            <h6 class="item-quantity"><span class="ml-3">2</span></h6>
+            <h6 class="item-total"><span class="ml-4">$40</span</h6>
+        </div>
+        <div>
+            <a class="btn btn-outline-danger btn-block mt-4" href="{% url 'store:cart' %}">Cancel</a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
