@@ -2,7 +2,7 @@
 src/.env
 src/.idea/
 src/Ecommerce/__pycache__/
-src/Ecommerce/
+src/Ecommerce/settings.py
 src/htmlcov
 src/media
 src/store/migrations
