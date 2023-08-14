@@ -4,6 +4,7 @@ from phone_field import PhoneField
 from users.models import Profile
 from PIL import Image
 from pathlib import Path
+from django_countries.fields import CountryField
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -52,7 +53,7 @@ class Product(models.Model):
     category = models.ForeignKey(Category, related_name='product_category', on_delete=models.SET_NULL, null=True)
     price = models.DecimalField(max_digits=8, decimal_places=2)
     quantity = models.PositiveIntegerField(default=0)
-    discount = models.ForeignKey(Discount, related_name='product_discount', on_delete=models.SET_NULL, null=True)
+    discount = models.ForeignKey(Discount, related_name='product_discount', on_delete=models.SET_NULL, null=True, blank=True)
     image = models.ImageField(upload_to=image_upload, default='store/default.jpg')
 
     def __str__(self):
@@ -77,7 +78,7 @@ class Product(models.Model):
 
 class ShippingInfo(models.Model):
     customer = models.OneToOneField(User, related_name='customer_shipping_info', on_delete=models.DO_NOTHING)
-    country = models.CharField(max_length=100)
+    country = CountryField(blank_label="(select country)")
     city = models.CharField(max_length=100)
     zipcode = models.PositiveIntegerField()
     address = models.CharField(max_length=100)
