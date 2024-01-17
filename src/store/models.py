@@ -1,33 +1,37 @@
+# import os
+from pathlib import Path
+
 from django.db import models
 from django.contrib.auth.models import User
-from phone_field import PhoneField
-from users.models import Profile
-from PIL import Image
-from pathlib import Path
 from django_countries.fields import CountryField
+from phone_field import PhoneField
+
+# from PIL import Image
+
+# from users.models import Profile
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 def image_upload(instance, filename):
     ext = filename.split(".")[-1]
-    folder = BASE_DIR / 'media' / 'store'
-    img_list = os.listdir(folder)
-    for img in img_list:
-        if str(instance.name) in img:
-            os.remove(folder / img)
-
     return f'store/{instance.name}.{ext}'
+
 
 class Category(models.Model):
     name = models.CharField(max_length=150)
 
-    @staticmethod
-    def get_all_categories():
-        return Category.objects.all()
-
     def __str__(self):
         return self.name
+
+    class Meta:
+        verbose_name_plural = "Categories"
+
+
+# handling the most repeated quires
+class DiscountManager(models.Manager):
+    def get_active_discounts(self):
+        return self.filter(active=True)
 
 
 class Discount(models.Model):
@@ -36,15 +40,24 @@ class Discount(models.Model):
     active = models.BooleanField(default=False)
     expired_date = models.DateField(auto_now=False, auto_now_add=False)
 
+    objects = DiscountManager()
+
     def __str__(self):
         return self.name
 
-    @staticmethod
-    def filter_discounts_by_active(discount_id):
-        try:
-            return Discount.objects.filter(active=discount_id)
-        except Exception:
-            return None
+
+class ProductManager(models.Manager):
+    def get_products_by_id(self, ids):
+        return self.filter(id__in=ids)
+
+    def get_all_products(self):
+        return self.all()
+
+    def get_all_products_by_category_id(self, category_id):
+        return self.filter(category=category_id)
+
+    def get_products_by_discount(self, discount):
+        return self.filter(discounts=discount)
 
 
 class Product(models.Model):
@@ -53,27 +66,17 @@ class Product(models.Model):
     category = models.ForeignKey(Category, related_name='product_category', on_delete=models.SET_NULL, null=True)
     price = models.DecimalField(max_digits=8, decimal_places=2)
     quantity = models.PositiveIntegerField(default=0)
-    discount = models.ForeignKey(Discount, related_name='product_discount', on_delete=models.SET_NULL, null=True, blank=True)
+    discount = models.ManyToManyField(Discount, related_name='product_discounts', on_delete=models.SET_NULL, null=True,
+                                      blank=True)
     image = models.ImageField(upload_to=image_upload, default='store/default.jpg')
+
+    objects = ProductManager()
 
     def __str__(self):
         return self.name
 
-    @staticmethod
-    def get_products_by_id(ids):
-        return Products.objects.filter(id__in=ids)
-
-    @staticmethod
-    def get_all_products():
-        return Products.objects.all()
-
-    @staticmethod
-    def get_all_products_by_categoryid(category_id):
-        try:
-            return Products.objects.filter(category=category_id)
-        except Exception:
-            return None
-
+    class Meta:
+        verbose_name_plural = "Products"
 
 
 class ShippingInfo(models.Model):
@@ -94,6 +97,7 @@ class ShippingInfo(models.Model):
         except Exception:
             return None
 
+
 class Order(models.Model):
     products = models.ManyToManyField(Product, related_name='products_order')
     shipping_info = models.ForeignKey(ShippingInfo, related_name='order_shipping_info', on_delete=models.DO_NOTHING)
@@ -107,7 +111,6 @@ class Order(models.Model):
 
     def __str__(self):
         return f'Order_{self.id}_made_by{self.shipping_info.customer}'
-
 
     @staticmethod
     def get_orders_by_customer(customer_id):

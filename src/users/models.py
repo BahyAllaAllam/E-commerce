@@ -2,6 +2,7 @@ from django.db import models
 from PIL import Image
 from pathlib import Path
 import os
+from store.models import Discount
 
 from django.contrib.auth.models import User
 
@@ -26,6 +27,7 @@ def image_upload(instance, filename):
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     image = models.ImageField(upload_to=image_upload, default='profile/default.jpg')
+    discounts = models.ManyToManyField(Discount, related_name='user_discounts', blank=True)
 
     def __str__(self):
         return f'{self.user.username} Profile'
