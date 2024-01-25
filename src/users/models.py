@@ -40,13 +40,3 @@ class Profile(models.Model):
             output_size = (300, 300)
             rgb_img.thumbnail(output_size)
             rgb_img.save(self.image.path)
-
-    def full_name(self):
-        return f"{self.user.first_name} {self.user.last_name}"
-
-    @staticmethod
-    def get_customer_by_email(email):
-        try:
-            return Customer.objects.get(email=email)
-        except:
-            return False
