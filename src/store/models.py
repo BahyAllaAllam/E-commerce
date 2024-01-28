@@ -10,15 +10,9 @@ from django.core.validators import MinLengthValidator
 
 # from PIL import Image
 
-# from users.models import Profile
+from users.models import change_images_name
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-
-def change_images_name(instance, filename):
-    """Helper function to change the name of the image to the product name."""
-    ext = filename.split(".")[-1]
-    return f'store/{instance.name}.{ext}'
 
 
 class Category(models.Model):
