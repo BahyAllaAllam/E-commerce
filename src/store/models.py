@@ -1,18 +1,20 @@
-# import os
 from decimal import Decimal
-from pathlib import Path
 
 from django.db import models
+from django.db.models import F, Sum
+from django.db.models.functions import Coalesce
 from django.contrib.auth.models import User
 from django_countries.fields import CountryField
 from phone_field import PhoneField
-from django.core.validators import MinLengthValidator
+from django.core.validators import MinLengthValidator, FileExtensionValidator, MinValueValidator
 
-# from PIL import Image
 
-from users.models import change_images_name
+# BASE_DIR = Path(__file__).resolve().parent.parent
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+def change_product_images_name(instance, filename):
+    """Helper function to change the name of the product image."""
+    ext = filename.split(".")[-1]
+    return f'store/{instance.name}.{ext}'
 
 
 class Category(models.Model):
@@ -36,6 +38,7 @@ class Category(models.Model):
 
 class Discount(models.Model):
     """Model representing the discount of the products."""
+    user = models.ManyToManyField(User, related_name='user_discounts', blank=True, null=True)
     name = models.CharField(max_length=100)
     percentage = models.DecimalField(max_digits=3, decimal_places=1)
     active = models.BooleanField(default=False)
@@ -49,7 +52,7 @@ class Discount(models.Model):
 
 
 # class ProductManager(models.Manager):
-#     """Custom manager for the products."""
+#     """Custom manager for the most repeated queries in the product's model."""
 #     def get_products_by_id(self, ids):
 #         return self.filter(id__in=ids)
 #
@@ -70,9 +73,10 @@ class Product(models.Model):
     category = models.ForeignKey(Category, related_name='product_category', on_delete=models.SET_NULL, null=True)
     price = models.DecimalField(max_digits=8, decimal_places=2)
     quantity = models.PositiveIntegerField(default=0)
-    discount = models.ManyToManyField(Discount, related_name='product_discounts', on_delete=models.SET_NULL, null=True,
-                                      blank=True)
-    image = models.ImageField(upload_to=change_images_name, default='store/default.jpg')
+    discount = models.ManyToManyField(Discount, related_name='products_with_discount', null=True, blank=True)
+    image = models.ImageField(upload_to=change_product_images_name, default='store/default.jpg', validators=[
+        FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png']),
+        MinValueValidator(limit_value={'width': 100, 'height': 100}), ])
 
     # objects = ProductManager()
 
@@ -88,12 +92,18 @@ class Product(models.Model):
 
     def calculate_discounted_price(self):
         """Calculate the discounted price based on applied discounts."""
-        discount_percentage = Decimal(0)
-        for discount in self.discount.all():
-            discount_percentage += discount.percentage
-        discount_amount = self.price * (discount_percentage / 100)
-        discounted_price = self.price - discount_amount
-        return max(Decimal('0.00'), Decimal(discounted_price))
+        # Using F() expression for efficient database calculation
+        total_discount = self.discount.aggregate(total_discount=Coalesce(Sum(F('percentage')), Decimal(0)))[
+            'total_discount']
+        discount_percentage = Decimal(total_discount)
+
+        # Coalesce the price to 0 in case it is None
+        price = Coalesce(self.price, Decimal(0))
+
+        # Calculate discounted price
+        discount_amount = price * (discount_percentage / Decimal(100))
+        discounted_price = price - discount_amount
+        return max(Decimal('0.00'), discounted_price)
 
     def __str__(self):
         """Return a string representation of the product."""
