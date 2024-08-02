@@ -1,39 +1,23 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}
-    Store
+    | Store
 {% endblock %}
 {% block body %}
-<div class="col-lg-4">
-    <img alt="placeholder" src="https://via.placeholder.com/350x250.png">
-    <div class="box-element product">
-        <h3>Product</h3>
-        <hr>
-        <button class="btn btn-outline-primary add-cart">Add To Cart</button>
-        <a class="btn btn-outline-secondary">View</a>
-        <p class="price">$20</p>
+
+<div class="row">
+    {% for product in products %}
+    <div class="col-lg-4">
+        <img class="thumbnail" alt="{{ product.name }}" src="{{ product.image.url }}">
+        <div class="box-element product">
+            <h3><strong>{{ product.name }}</strong></h3>
+            <hr>
+            <button data-product="{{ product.id }}" data-action="add" class="btn btn-outline-primary add-btn update-cart">Add To Cart</button>
+            <a class="btn btn-outline-secondary">View</a>
+            <p class="price"><strong>${{ product.price|floatformat:2 }}</strong></p>
+        </div>
     </div>
+    {% endfor %}
 </div>
 
-<div class="col-lg-4">
-    <img alt="placeholder" src="https://via.placeholder.com/350x250.png">
-    <div class="box-element product">
-        <h3>Product</h3>
-        <hr>
-        <button class="btn btn-outline-primary add-cart">Add To Cart</button>
-        <a class="btn btn-outline-secondary">View</a>
-        <p class="price">$20</p>
-    </div>
-</div>
-
-<div class="col-lg-4">
-    <img alt="placeholder" src="https://via.placeholder.com/350x250.png">
-    <div class="box-element product">
-        <h3>Product</h3>
-        <hr>
-        <button class="btn btn-outline-primary add-cart">Add To Cart</button>
-        <a class="btn btn-outline-secondary">View</a>
-        <p class="price">$20</p>
-    </div>
-</div>
 {% endblock %}

@@ -2,7 +2,7 @@
 {% load bootstrap4 %}
 
 {% block title %}
-    Change {{ user.username }} Email
+    | Change {{ user.username }} Email
 {% endblock %}
 
 {% block content %}
@@ -12,7 +12,7 @@
     {% bootstrap_form e_form %}
     {% buttons %}
     <button type="submit" class="btn btn-outline-info w-100 btn-lg">Update</button>
-    <a class="btn btn-outline-danger w-100 mt-2 btn-lg" href="{% url 'users:profile' %}">Cancel</a>
+    <a class="btn btn-outline-secondary w-100 mt-2 btn-lg" href="{% url 'users:profile' %}">Cancel</a>
     {% endbuttons %}
 </form>
 {% endblock %}

@@ -1,8 +1,10 @@
 {% extends 'base.html' %}
 {% load static %}
+
 {% block title %}
-    Checkout
+    | Checkout
 {% endblock %}
+
 {% block body %}
 <div class="col-lg-6">
     <div class="box-element" id="form-wrapper">
@@ -59,17 +61,44 @@
             <h5 class="item-total">Total Price</h5>
         </div>
         <hr>
+        {% for item in order_items %}
         <div class="cart-row">
-            <div class="item-img"><img src="https://via.placeholder.com/100x50.png"></div>
-            <h6 class="item-name">Product 1</h6>
-            <h6 class="item-price">$20.00</h6>
-            <h6 class="item-quantity"><span class="ml-3">2</span></h6>
-            <h6 class="item-total"><span class="ml-4">$40</span</h6>
+            <div class="item-img"><img class="item-image" src="{{ item.product.image.url }}"></div>
+            <h6 class="item-name">{{ item.product.name }}</h6>
+            <h6 class="item-price">${{ item.product.price|floatformat:2 }}</h6>
+            <h6 class="item-quantity"><span class="ml-3">{{ item.quantity }}</span></h6>
+            <h6 class="item-total"><span class="ml-4">${{ item.get_total_price|floatformat:2 }}</span></h6>
         </div>
+        {% endfor %}
         <div>
             <a class="btn btn-outline-danger btn-block mt-4" href="{% url 'store:cart' %}">Cancel</a>
         </div>
     </div>
 </div>
+<script type="text/javascript">
+        document.getElementById('payment-info').style.display = "none";
+		var shipping = '{{order.shipping}}'
 
+		if (shipping == 'False'){
+		 	document.getElementById('shipping-info').innerHTML = ''
+		}
+
+		if (user != 'AnonymousUser'){
+		 	document.getElementById('user-info').innerHTML = ''
+		 }
+
+		if (shipping == 'False' && user != 'AnonymousUser'){
+			//Hide entire form if user is logged in and shipping is false
+				document.getElementById('form-wrapper').style.display = "none";
+				//Show payment if logged in user wants to buy an item that does not require shipping
+			    document.getElementById('payment-info').style.display = "block";
+		}
+		var form = document.getElementById('form')
+		form.addEventListener('submit', function(e){
+	    	e.preventDefault()
+	    	console.log('Form Submitted...')
+	    	document.getElementById('form-button').style.display = "none";
+	    	document.getElementById('payment-info').style.display = "block";
+	    })
+</script>
 {% endblock %}

@@ -1,8 +1,10 @@
 {% extends 'base.html' %}
 {% load static %}
+
 {% block title %}
-    Cart
-{% endblock %}
+    | Cart
+{% endblock title %}
+
 {% block body %}
 <div class="col-lg-12">
     <div class="box-element checkout">
@@ -15,20 +17,22 @@
             <h3 class="item-total">Total</h3>
         </div>
         <hr>
+        {% for item in order_items %}
         <div class="cart-row">
-            <div class="item-img"><img src="https://via.placeholder.com/100x50.png"></div>
-            <p class="item-name">Product 1</p>
-            <p class="item-price">$20</p>
+            <div class="item-img"><img class="item-image" src="{{ item.product.image.url }}"></div>
+            <p class="item-name">{{ item.product.name }}</p>
+            <p class="item-price">${{ item.product.price|floatformat:2 }}</p>
             <div class="item-quantity">
-                <p class="quantity">2</p>
+                <p class="quantity">{{ item.quantity }}</p>
                 <div class="quantity">
                     <!--<img class="arrow" src="{% static 'img/arrow-up.png' %}"><img class="arrow" src="{% static 'img/arrow-down.png' %}">-->
-                    <a class="arrow" href="#"><i class="fa fa-caret-up"></i></a>
-                    <a class="arrow" href="#"><i class="fa fa-caret-down"></i></a>
+                    <a class="arrow update-cart" data-action="add" data-product="{{item.product.id}}" href=""><i class="fa fa-caret-up"></i></a>
+                    <a class="arrow update-cart" data-action="remove" data-product="{{item.product.id}}" href=""><i class="fa fa-caret-down"></i></a>
                 </div>
             </div>
-            <p class="item-total">$40</p>
+            <p class="item-total">${{ item.get_total_price|floatformat:2 }}</p>
         </div>
+        {% endfor %}
     </div>
 
     <div class="box-element checkout">
@@ -38,8 +42,13 @@
         </div>
         <hr>
         <div class="checkout-table">
-            <p class="items-num">2</p>
-            <p class="items-price">$40</p>
+            {% if order %}
+            <p class="items-num">{{ order.get_total_quantity }}</p>
+            <p class="items-price">${{ order.get_total_price_for_order }}</p>
+            {% else %}
+            <p class="items-num">0</p>
+            <p class="items-price">$0</p>
+            {% endif %}
         </div>
         <div class="m-2">
             <a class="btn btn-outline btn-block checkout-btn" href="{% url 'store:checkout' %}">Checkout</a>

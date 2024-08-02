@@ -1,15 +1,11 @@
-from decimal import Decimal
-
+from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import F, Sum
-from django.db.models.functions import Coalesce
 from django.contrib.auth.models import User
+from django.utils import timezone
 from django_countries.fields import CountryField
 from phone_field import PhoneField
-from django.core.validators import MinLengthValidator, FileExtensionValidator, MinValueValidator
+from django.core.validators import MinLengthValidator, FileExtensionValidator
 
-
-# BASE_DIR = Path(__file__).resolve().parent.parent
 
 def change_product_images_name(instance, filename):
     """Helper function to change the name of the product image."""
@@ -19,7 +15,11 @@ def change_product_images_name(instance, filename):
 
 class Category(models.Model):
     """Model representing the Categories."""
-    name = models.CharField(max_length=150)
+    name = models.CharField(max_length=50)
+
+    @staticmethod
+    def get_all_categories():
+        return Category.objects.all()
 
     def __str__(self):
         """Return a string representation of the Category."""
@@ -31,79 +31,59 @@ class Category(models.Model):
 
 
 # handling the most repeated quires
-# class DiscountManager(models.Manager):
-#     def get_active_discounts(self):
-#         return self.filter(active=True)
+class DiscountManager(models.Manager):
+    def get_active_discounts(self):
+        return self.filter(active=True, expired_date__gte=timezone.now())
 
 
 class Discount(models.Model):
     """Model representing the discount of the products."""
-    user = models.ManyToManyField(User, related_name='user_discounts', blank=True, null=True)
     name = models.CharField(max_length=100)
-    percentage = models.DecimalField(max_digits=3, decimal_places=1)
+    percentage = models.DecimalField(max_digits=4, decimal_places=2)
     active = models.BooleanField(default=False)
-    expired_date = models.DateField(auto_now=False, auto_now_add=False)
+    expired_date = models.DateField()
+    user = models.ManyToManyField(User, related_name='user_discounts', blank=True)
 
-    # objects = DiscountManager()
+    objects = DiscountManager()
 
     def __str__(self):
         """Return a string representation of the discount."""
         return self.name
 
+    def clean(self):
+        """Ensure the expired date is in the future."""
+        if self.expired_date <= timezone.now().date():
+            raise ValidationError('The expiration date must be in the future.')
 
-# class ProductManager(models.Manager):
-#     """Custom manager for the most repeated queries in the product's model."""
-#     def get_products_by_id(self, ids):
-#         return self.filter(id__in=ids)
-#
-#     def get_all_products(self):
-#         return self.all()
-#
-#     def get_all_products_by_category_id(self, category_id):
-#         return self.filter(category=category_id)
-#
-#     def get_products_by_discount(self, discount):
-#         return self.filter(discounts=discount)
+
+class ProductManager(models.Manager):
+    """Custom manager for the most repeated queries in the product's model."""
+
+    def get_products_by_id(self, ids):
+        return self.filter(id__in=ids)
+
+    def get_all_products(self):
+        return self.all()
+
+    def get_all_products_by_category_id(self, category_id):
+        return self.filter(category=category_id)
+
+    def get_products_by_discount(self, discount):
+        return self.filter(discount=discount)
 
 
 class Product(models.Model):
     """Model representing the products."""
     name = models.CharField(max_length=100, unique=True)
-    description = models.TextField(blank=False, null=False)
+    description = models.TextField(max_length=250)
     category = models.ForeignKey(Category, related_name='product_category', on_delete=models.SET_NULL, null=True)
     price = models.DecimalField(max_digits=8, decimal_places=2)
-    quantity = models.PositiveIntegerField(default=0)
-    discount = models.ManyToManyField(Discount, related_name='products_with_discount', null=True, blank=True)
-    image = models.ImageField(upload_to=change_product_images_name, default='store/default.jpg', validators=[
-        FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png']),
-        MinValueValidator(limit_value={'width': 100, 'height': 100}), ])
+    discount = models.ManyToManyField(Discount, related_name='products_with_discount', blank=True)
+    digital = models.BooleanField(default=False)
+    image = models.ImageField(upload_to=change_product_images_name, default='store/default.png', validators=[
+        FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png'])])
 
-    # objects = ProductManager()
-
-    def save(self, *args, **kwargs):
-        """Override the save method to update the price based on applied discounts."""
-        # Calculate the discounted price based on applied discounts
-        discounted_price = self.calculate_discounted_price()
-
-        # Update the price attribute with the calculated discounted price
-        self.price = discounted_price
-
-        super().save(*args, **kwargs)
-
-    def calculate_discounted_price(self):
-        """Calculate the discounted price based on applied discounts."""
-        # Using F() expression for efficient database calculation
-        total_discount = self.discount.aggregate(total_discount=Coalesce(Sum(F('percentage')), Decimal(0)))[
-            'total_discount']
-        discount_percentage = Decimal(total_discount)
-
-        # Coalesce the price to 0 in case it is None
-        price = Coalesce(self.price, Decimal(0))
-
-        # Calculate discounted price
-        discount_amount = price * (discount_percentage / Decimal(100))
-        discounted_price = price - discount_amount
-        return max(Decimal('0.00'), discounted_price)
+    objects = ProductManager()
 
     def __str__(self):
         """Return a string representation of the product."""
@@ -127,7 +107,7 @@ class ShippingInfo(models.Model):
     """Model representing shipping information."""
     country = CountryField(blank_label="(select country)")
     city = models.CharField(max_length=100)
-    zipcode = models.PositiveIntegerField(validators=[MinLengthValidator(5)])
+    zipcode = models.PositiveIntegerField()
     address = models.CharField(max_length=100)
     phone = PhoneField(help_text='Required. Contact phone number', validators=[MinLengthValidator(10)])
 
@@ -139,40 +119,71 @@ class ShippingInfo(models.Model):
 class Order(models.Model):
     """Model representing the orders."""
     customer = models.ForeignKey(User, related_name='customer_orders', on_delete=models.DO_NOTHING)
-    deleted_user_name = models.CharField(max_length=255, blank=True, null=True)
-    deleted_user_email = models.EmailField(blank=True, null=True)
-    products = models.ManyToManyField(Product, related_name='products_order')
     shipping_info = models.ForeignKey(ShippingInfo, related_name='order_shipping_info', on_delete=models.DO_NOTHING)
     quantity = models.PositiveIntegerField(default=0)
-    price = models.DecimalField(max_digits=8, decimal_places=2)
-    payment_status = models.CharField(max_length=15, choices=[('Paid', 'Paid'), ('Not paid', 'Not paid')])
+    price = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True, editable=False)
     complete = models.BooleanField(default=False)
-    shipping_satus = models.CharField(max_length=15, choices=[('Delivered', 'Delivered'), ('Pending', 'Pending')])
-    created_at = models.DateTimeField(auto_now_add=True, auto_now=False)
-    modified_at = models.DateTimeField(auto_now_add=False, auto_now=True)
+    shipping_status = models.CharField(max_length=15, choices=[('Delivered', 'Delivered'), ('Pending', 'Pending')])
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         """Return a string representation of the orders."""
-        if self.deleted_user_name:
-            # check if the user is deleted
-            return f'Order_number {self.id} made_by{self.deleted_user_name} (Deleted User)'
-        else:
-            return f'Order_number {self.id} made_by{self.customer}'
+        return f'Order number {self.id} by {self.customer}'
 
+    @property
+    def get_total_price_for_order(self):
+        """Calculate total price for the order."""
+        total_price = sum(item.get_total_price for item in self.orderitem_set.all())
+        return total_price
+
+    @property
+    def get_total_quantity(self):
+        """Calculate total quantity for the order."""
+        total_quantity = sum([item.quantity for item in self.orderitem_set.all()])
+        return total_quantity
+
+    @property
+    def get_cart_total(self):
+        """Calculate total cart items"""
+        total = sum([item.get_total for item in self.orderitem_set.all()])
+        return total
+
+    @property
+    def get_cart_items(self):
+        """Calculate total cart items"""
+        total = sum([item.quantity for item in self.orderitem_set.all()])
+        return total
+
+    @property
+    def shipping(self):
+        shipping = False
+        orderitems = self.orderitem_set.all()
+        for i in orderitems:
+            if i.product.digital == False:
+                shipping = True
+        return shipping
+
+
+'''        
     def save(self, *args, **kwargs):
-        """
-        Override the save method to handle special logic before saving."""
-        if self.customer:
-            # If the customer is deleted, store their name and email before deleting
+        """Override save method to calculate total price."""
+        super().save(*args, **kwargs)  # Save initially without price
+        self.price = self.get_total_price()
+        super().save(*args, **kwargs)  # Save again with updated price
+'''
 
-            if hasattr(self.customer, 'get_full_name'):
-                # Use get_full_name() if available
-                self.deleted_user_name = self.customer.get_full_name()
-            else:
-                # Use username as a fallback if get_full_name() is not available
-                self.deleted_user_name = self.customer.username
 
-            self.deleted_user_email = self.customer.email
-            # Clear the ForeignKey to prevent errors
-            self.customer = None
-        super().save(*args, **kwargs)
+class OrderItem(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True)
+    order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True)
+    quantity = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        """Return a string representation of the orders."""
+        return f'Order number {self.order.id} by {self.order.customer}'
+
+    @property
+    def get_total_price(self):
+        """Calculate total price based on products and their quantities."""
+        total = self.product.price * self.quantity
+        return total

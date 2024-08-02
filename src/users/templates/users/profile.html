@@ -2,7 +2,7 @@
 {% load bootstrap4 %}
 
 {% block title %}
-    {{ user.username.capitalize }} Profile
+    | {{ user.username.capitalize }} Profile
 {% endblock %}
 
 {% block content %}
@@ -22,6 +22,7 @@
     {% bootstrap_form p_form %}
     {% buttons %}
         <button class="btn btn-outline-info w-100 btn-lg" type="submit">Update</button>
+        <a class="btn btn-outline-secondary w-100 mt-2 btn-lg" href="/">Cancel</a>
         <a class="btn btn-outline-danger w-100 mt-2 btn-lg" href="{% url 'users:delete-user' user.username%}">Delete</a>
     {% endbuttons %}
 </form>

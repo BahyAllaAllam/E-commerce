@@ -3,13 +3,14 @@ from django.core.validators import FileExtensionValidator, MaxValueValidator, Mi
 from django.contrib.auth.models import User
 
 from PIL import Image
-from store.models import Discount
+# from store.models import Discount
 
 # from pathlib import Path
 # import os
 
 # Overwrite the email field in the user model to set the unique value equals to true
 User._meta.get_field('email')._unique = True
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 # BASE_DIR = Path(__file__).resolve().parent.parent
@@ -23,9 +24,7 @@ def change_users_images_name(instance, filename):
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    image = models.ImageField(upload_to=change_users_images_name, default='profile/default.jpg', validators=[
-        MinValueValidator(limit_value={'width': 100, 'height': 100}),
-        MaxValueValidator(limit_bytes=1024 * 1024), ])
+    image = models.ImageField(upload_to=change_users_images_name, default='profile/default.jpg')
 
     def __str__(self):
         return f'{self.user.username} Profile'
