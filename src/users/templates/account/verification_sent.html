@@ -1,0 +1,18 @@
+{% extends "base_generic.html" %}
+{% load allauth %}
+
+{% block extra_head %}
+    - Verify Your Email Address
+{% endblock extra_head %}
+
+{% block auth_content %}
+    {% element h1 %}
+        Verify Your Email Address
+    {% endelement %}
+    {% element p %}
+        We have sent an email to you for verification.
+        Follow the link provided to finalize the signup process.
+        If you do not see the verification email in your main inbox, check your spam folder.
+        Please <a href="/#contacts">Contact Us</a> if you do not receive the verification email within a few minutes.
+    {% endelement %}
+{% endblock auth_content %}

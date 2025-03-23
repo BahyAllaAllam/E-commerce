@@ -1,13 +1,16 @@
-from django.urls import path
-from django.contrib.auth.views import LoginView, LogoutView
+from django.urls import path, include
 from . import views
+from .api_views import ProfileViewSet
 
 app_name = 'users'
 
 urlpatterns = [
-    path("register/", views.register, name="register"),
-    path('activate/<uidb64>/<token>', views.activate, name='activate'),
     path("profile/", views.profile, name="profile"),
-    path('profile/<str:username>/edit/email', views.change_email, name='change_email'),
     path('profile/<str:username>/delete', views.delete_user, name='delete-user'),
+    path('api/', ProfileViewSet.as_view({'get': 'list'}), name='rest_profile-list'),
+    path('api/profile/<str:username>/',
+         ProfileViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update'}),
+         name='rest_profile-detail'),
+    path('api/auth/', include('dj_rest_auth.urls')),
+    path('api/auth/registration/', include('dj_rest_auth.registration.urls')),
 ]

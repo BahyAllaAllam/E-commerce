@@ -1,0 +1,15 @@
+{% extends "base_generic.html" %}
+{% load allauth %}
+
+{% block extra_head %}
+    - Account Inactive
+{% endblock extra_head %}
+
+{% block auth_content %}
+    {% element h1 %}
+        Account Inactive
+    {% endelement %}
+    {% element p %}
+        This account is inactive.
+    {% endelement %}
+{% endblock auth_content %}

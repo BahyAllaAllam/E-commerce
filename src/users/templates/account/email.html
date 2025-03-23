@@ -1,0 +1,92 @@
+{% extends "base_generic.html" %}
+{% load allauth i18n %}
+
+{% block extra_head %}
+    - Email Addresses
+{% endblock extra_head %}
+
+{% block auth_content %}
+    {% element h1 %}
+        Email Addresses
+    {% endelement %}
+    {% if emailaddresses %}
+        {% element p %}
+            The following email addresses are associated with your account:
+        {% endelement %}
+        {% url 'account_email' as email_url %}
+        {% element form form=form action=email_url method="post" tags="email,list" %}
+            {% slot body %}
+                {% csrf_token %}
+                {% for radio in emailaddress_radios %}
+                    {% with emailaddress=radio.emailaddress %}
+                        {% element field type="radio" checked=radio.checked name="email" value=emailaddress.email id=radio.id %}
+                            {% slot label %}
+                                {{ emailaddress.email }}
+                                {% if emailaddress.verified %}
+                                    {% element badge tags="success,email,verified" %}
+                                        Verified
+                                    {% endelement %}
+                                {% else %}
+                                    {% element badge tags="warning,email,unverified" %}
+                                        Unverified
+                                    {% endelement %}
+                                {% endif %}
+                                {% if emailaddress.primary %}
+                                    {% element badge tags="email,primary" %}
+                                        Primary
+                                    {% endelement %}
+                                {% endif %}
+                            {% endslot %}
+                        {% endelement %}
+                    {% endwith %}
+                {% endfor %}
+            {% endslot %}
+            {% slot actions %}
+                {% element button type="submit" name="action_primary" %}
+                    {% trans 'Make Primary' %}
+                {% endelement %}
+                {% element button tags="secondary" type="submit" name="action_send" %}
+                    Re-send Verification
+                {% endelement %}
+                {% element button tags="danger,delete" type="submit" name="action_remove" %}
+                    Remove
+                {% endelement %}
+            {% endslot %}
+        {% endelement %}
+    {% else %}
+        {% include "account/snippets/warn_no_email.html" %}
+    {% endif %}
+    {% if can_add_email %}
+        {% element h2 %}
+            Add Email Address
+        {% endelement %}
+        {% url 'account_email' as action_url %}
+        {% element form form=form method="post" action=action_url tags="email,add" %}
+            {% slot body %}
+                {% csrf_token %}
+                {% element fields form=form %}
+                {% endelement %}
+            {% endslot %}
+            {% slot actions %}
+                {% element button name="action_add" type="submit" %}
+                    Add Email
+                {% endelement %}
+            {% endslot %}
+        {% endelement %}
+    {% endif %}
+{% endblock auth_content %}
+{% block extra_body %}
+    <script type="text/javascript">
+(function() {
+  var message = "Do you really want to remove the selected email address?";
+  var actions = document.getElementsByName('action_remove');
+  if (actions.length) {
+    actions[0].addEventListener("click", function(e) {
+      if (! confirm(message)) {
+        e.preventDefault();
+      }
+    });
+  }
+})();
+    </script>
+{% endblock extra_body %}

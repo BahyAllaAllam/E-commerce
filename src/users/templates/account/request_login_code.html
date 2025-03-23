@@ -1,0 +1,35 @@
+{% extends "base_generic.html" %}
+{% load allauth account %}
+
+{% block extra_head %}
+    - Sign In
+{% endblock extra_head %}
+
+{% block auth_content %}
+    {% element h1 %}
+        Mail me a sign-in code
+    {% endelement %}
+    {% element p %}
+        You will receive an email containing a special code for a password-free sign-in.
+    {% endelement %}
+    {% url 'account_request_login_code' as login_url %}
+    {% element form form=form method="post" action=login_url tags="entrance,login" %}
+        {% slot body %}
+            {% csrf_token %}
+            {% element fields form=form unlabeled=True %}
+            {% endelement %}
+            {{ redirect_field }}
+        {% endslot %}
+        {% slot actions %}
+            {% element button type="submit" tags="prominent,login" %}
+                Request Code
+            {% endelement %}
+        {% endslot %}
+    {% endelement %}
+    {% element h2 %}
+        {% url 'account_login' as login_url %}
+        {% element button href=login_url tags="link" %}
+            Other sign-in options
+        {% endelement %}
+    {% endelement %}
+{% endblock auth_content %}

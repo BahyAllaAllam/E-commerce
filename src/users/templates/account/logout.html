@@ -1,0 +1,22 @@
+{% extends "base_generic.html" %}
+{% load allauth i18n %}
+
+{% block extra_head %}
+    - Sign Out
+{% endblock extra_head %}
+
+{% block auth_content %}
+    {% element h1 %}
+        Sign Out
+    {% endelement %}
+    {% element p %}
+        Are you sure you want to sign out?
+    {% endelement %}
+    <form method="post" action="{% url 'account_logout' %}">
+        {% csrf_token %}
+        {{ redirect_field }}
+        <input type="submit" class="btn btn-danger" value="Sign out">
+        <a class="btn btn-success" href="/">Take Me Back</a>
+    </form>
+
+{% endblock auth_content %}

@@ -1,0 +1,83 @@
+{% extends "base_generic.html" %}
+{% load allauth %}
+
+{% block extra_head %}
+    - Email Address
+{% endblock extra_head %}
+
+{% block auth_content %}
+    {% element h1 %}
+        Email Address
+    {% endelement %}
+    {% if not emailaddresses %}
+        {% include "account/snippets/warn_no_email.html" %}
+    {% endif %}
+    <form method="post" action="{% url 'account_email' %}">
+        {% csrf_token %}
+
+        <!-- Current email address, if available -->
+        {% if current_emailaddress %}
+            <div class="form-group">
+                <label for="current_email">Current email</label>
+                <input id="current_email" type="email" value="{{ current_emailaddress.email }}" disabled class="form-control">
+            </div>
+        {% endif %}
+
+        <!-- New email address, if pending verification -->
+        {% if new_emailaddress %}
+            <div class="form-group">
+                <label for="new_email">
+                    {% if not current_emailaddress %}
+                        Current email
+                    {% else %}
+                        Changing to
+                    {% endif %}
+                </label>
+                <input id="new_email" type="email" value="{{ new_emailaddress.email }}" class="form-control" disabled>
+                <small class="form-text text-muted">
+                    Your email address is still pending verification.
+                </small>
+
+                <!-- Re-send Verification button -->
+                <button form="pending-email" type="submit" name="action_send" class="btn btn-outline-secondary">
+                    Re-send Verification
+                </button>
+
+                <!-- Cancel Change button -->
+                {% if current_emailaddress %}
+                    <button form="pending-email" type="submit" name="action_remove" class="btn btn-outline-danger">
+                        Cancel Change
+                    </button>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        <!-- Change to new email address form field -->
+        <div class="form-group">
+            <label for="{{ form.email.auto_id }}">Change to</label>
+            <input id="{{ form.email.auto_id }}" name="email" type="email" value="{{ form.email.value|default_if_none:'' }}" class="form-control" placeholder="Type Your New Email...">
+            {% if form.email.errors %}
+                <div class="error-message">
+                    {{ form.email.errors }}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Submit button to change email -->
+        <div class="form-group">
+            <button type="submit" name="action_add" class="btn btn-outline-success">
+                Change Email
+            </button>
+        </div>
+    </form>
+
+    {% if new_emailaddress %}
+        <form style="display: none"
+              id="pending-email"
+              method="post"
+              action="{% url 'account_email' %}">
+            {% csrf_token %}
+            <input type="hidden" name="email" value="{{ new_emailaddress.email }}">
+        </form>
+    {% endif %}
+{% endblock auth_content %}

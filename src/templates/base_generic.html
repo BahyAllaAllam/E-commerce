@@ -1,11 +1,12 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
+
 {% block base_generic %}
 <div class="auth-form">
     <div class="col-lg-6 mx-auto">
         <div class="content-section">
-            {% block content %}
-            {% endblock content %}
+            {% block auth_content %}
+            {% endblock auth_content %}
         </div>
     </div>
 </div>
-{% endblock %}
+{% endblock base_generic %}

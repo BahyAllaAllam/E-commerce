@@ -3,7 +3,8 @@ import json
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render
-from store.models import Product, Order, OrderItem
+from store.models import Product, Order, OrderItem, ShippingInfo
+import datetime
 
 
 def store(request):
@@ -21,13 +22,22 @@ def store(request):
 
 
 def cart(request):
-    order = None
-    order_items = []
-    cartItems = 0
     if request.user.is_authenticated:
         order, created = Order.objects.get_or_create(customer=request.user, complete=False)
         order_items = order.orderitem_set.select_related('product').all()
         cartItems = order.get_cart_items
+
+    else:
+        try:
+            cart = json.loads(request.COOKIES['cart'])
+        except Exception:
+            cart = {}
+        order_items = []
+        order = {'get_cart_total': 0, 'get_cart_items': 0, 'shipping': False}
+        cartItems = order['get_cart_items']
+
+        for i in cart:
+            cartItems += cart[i]["quantity"]
     context = {'order': order, 'order_items': order_items, 'cartItems': cartItems}
     return render(request, 'store/cart.html', context)
 
@@ -69,3 +79,31 @@ def updateItem(request):
         orderItem.delete()
 
     return JsonResponse('Item was added', safe=False)
+
+
+def processOrder(request):
+    transaction_id = datetime.datetime.now().timestamp()
+    data = json.loads(request.body)
+
+    if request.user.is_authenticated:
+        order, created = Order.objects.get_or_create(customer=request.user, complete=False)
+        total = float(data['form']['total'])
+        order.transaction_id = transaction_id
+
+        if total == order.get_cart_total:
+            order.complete = True
+        order.save()
+
+        if order.shipping:
+            ShippingInfo.objects.create(
+                country=data['shipping']['country'],
+                city=data['shipping']['city'],
+                state=data['shipping']['state'],
+                zipcode=data['shipping']['zipcode'],
+                address=data['shipping']['address'],
+                phone=data['shipping']['phone']
+            )
+    else:
+        print('log in to continue...')
+
+    return JsonResponse('Payment submitted..', safe=False)

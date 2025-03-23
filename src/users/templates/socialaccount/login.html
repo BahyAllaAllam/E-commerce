@@ -1,0 +1,32 @@
+{% extends "base_generic.html" %}
+{% load allauth %}
+
+{% block extra_head %}
+    - Sign In
+{% endblock extra_head %}
+
+{% block auth_content %}
+    {% if process == "connect" %}
+        {% element h1 %}
+            Connect {{ provider }}
+        {% endelement %}
+        {% element p %}
+            You are about to connect a new third-party account from {{ provider }}.
+        {% endelement %}
+    {% else %}
+        {% element h1 %}
+            Sign up Via {{ provider }}
+        {% endelement %}
+        {% element p %}
+            You are about to sign up using a third-party account from {{ provider }}.
+        {% endelement %}
+    {% endif %}
+    {% element form method="post" no_visible_fields=True %}
+        {% slot actions %}
+            {% csrf_token %}
+            {% element button type="submit" %}
+                Continue
+            {% endelement %}
+        {% endslot %}
+    {% endelement %}
+{% endblock auth_content %}

@@ -1,25 +1,25 @@
 from django.db import models
-from django.core.validators import FileExtensionValidator, MaxValueValidator, MinValueValidator
 from django.contrib.auth.models import User
-
+from pathlib import Path
+import os
 from PIL import Image
 # from store.models import Discount
 
-# from pathlib import Path
-# import os
-
-# Overwrite the email field in the user model to set the unique value equals to true
-User._meta.get_field('email')._unique = True
-
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-# BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 def change_users_images_name(instance, filename):
     """Helper function to change the name of the users image."""
     ext = filename.split(".")[-1]
-    return f'profile/{instance.user.username}.{ext}'
+    folder = BASE_DIR / 'media' / 'profile'
+    img_list = os.listdir(folder)
+    for img in img_list:
+        if str(instance.user) in img:
+            os.remove(folder / img)
+
+    return f'profile/{instance.user}.{ext}'
 
 
 class Profile(models.Model):
@@ -38,3 +38,6 @@ class Profile(models.Model):
             output_size = (300, 300)
             rgb_img.thumbnail(output_size)
             rgb_img.save(self.image.path)
+
+    def full_name(self):
+        return f"{self.user.first_name} {self.user.last_name}"

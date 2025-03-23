@@ -1,0 +1,75 @@
+{% extends "base_generic.html" %}
+{% load allauth account %}
+{% load bootstrap4 %}
+
+{% block extra_head %}
+   - Sign In
+{% endblock extra_head %}
+
+{% block auth_content %}
+    {% if not SOCIALACCOUNT_ONLY %}
+        <form method="post" action="{% url 'account_login' %}" id="loginForm">
+            {% csrf_token %}
+
+            {% if redirect_field_value %}
+                <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}"/>
+            {% endif %}
+
+            <div class="form-group">
+                <label for="{{ form.login.id_for_label }}">Email Or Username</label>
+                {{ form.login }}
+            </div>
+
+            <div class="form-group" style="position: relative;">
+                <label for="{{ form.password.id_for_label }}">Password</label>
+                {{ form.password }}
+                <i class="fas fa-eye" id="eye-icon"></i>
+            </div>
+
+            {% if form.non_field_errors %}
+                <div class="error-message">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label for="{{ form.remember.id_for_label }}">
+                    {{ form.remember }}
+                    Remember Me
+                </label>
+            </div>
+
+            <button type="submit" class="btn btn-outline-success">Login</button>
+
+        </form>
+    {% endif %}
+
+    {% setvar link %}
+        <a href="{% url 'account_signup' %}">
+            {% endsetvar %}
+            {% setvar end_link %}
+        </a>
+    {% endsetvar %}
+
+    {% element p %}
+        Don't have an account? {{ link }}Register Now{{ end_link }}
+    {% endelement %}
+
+    <small class="form-text text-muted">
+        <a href="{% url 'account_reset_password' %}">Forgot your password?</a>
+    </small>
+
+    {% if LOGIN_BY_CODE_ENABLED %}
+        {% element hr %}
+        {% endelement %}
+        {% element h2 %}
+            Or use a
+            {% element button href=request_login_code_url tags="prominent,login,secondary" %}
+                One Time sign-in code
+            {% endelement %}
+        {% endelement %}
+    {% endif %}
+    {% if SOCIALACCOUNT_ENABLED %}
+        {% include "socialaccount/snippets/login.html" with page_layout="entrance" %}
+    {% endif %}
+{% endblock auth_content %}

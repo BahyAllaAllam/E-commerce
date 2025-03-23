@@ -1,0 +1,15 @@
+{% extends "base_generic.html" %}
+{% load allauth %}
+
+{% block extra_head %}
+    - Sign Up Closed
+{% endblock extra_head %}
+
+{% block auth_content %}
+    {% element h1 %}
+        Sign Up Closed
+    {% endelement %}
+    {% element p %}
+        We are sorry, but the sign up is currently closed.
+    {% endelement %}
+{% endblock auth_content %}

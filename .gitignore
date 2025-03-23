@@ -1,4 +1,3 @@
-.gitignore
 src/.env
 src/.idea/
 src/Ecommerce/__pycache__/
@@ -12,3 +11,65 @@ src/db.sqlite3
 src/users/__pycache__/
 src/users/migrations/
 src/.coverage
+Ecommerce/.idea
+
+# Python
+src/**/__pycache__/
+src/**/*.py[cod]
+src/**/*$py.class
+src/**/*.so
+src/.Python
+src/build/
+src/dist/
+src/downloads/
+src/eggs/
+src/.eggs/
+src/lib/
+src/lib64/
+src/parts/
+src/sdist/
+src/var/
+src/wheels/
+src/**/*.egg-info/
+src/.installed.cfg
+src/**/*.egg
+
+# Django
+src/**/*.log
+src/local_settings.py
+src/db.sqlite3-journal
+src/staticfiles/
+
+# Virtual Environment
+src/venv/
+src/env/
+src/ENV/
+
+# IDE
+src/.vscode/
+src/**/*.swp
+src/**/*.swo
+src/.DS_Store
+
+# Coverage
+src/coverage.xml
+src/**/*.cover
+
+# Database
+src/**/*.db
+
+# Environment variables
+src/.env.local
+src/.env.*.local
+
+# Media files
+src/uploads/
+
+# Static files - Images only
+src/static/**/*.jpg
+src/static/**/*.jpeg
+src/static/**/*.png
+src/static/**/*.gif
+src/static/**/*.svg
+src/static/**/*.ico
+src/static/**/*.webp
