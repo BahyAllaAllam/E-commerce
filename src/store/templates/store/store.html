@@ -3,21 +3,138 @@
 {% block title %}
     | Store
 {% endblock %}
-{% block body %}
 
-<div class="row">
-    {% for product in products %}
-    <div class="col-lg-4">
-        <img class="thumbnail" alt="{{ product.name }}" src="{{ product.image.url }}">
-        <div class="box-element product">
-            <h3><strong>{{ product.name }}</strong></h3>
-            <hr>
-            <button data-product="{{ product.id }}" data-action="add" class="btn btn-outline-primary add-btn update-cart">Add To Cart</button>
-            <a class="btn btn-outline-secondary">View</a>
-            <p class="price"><strong>${{ product.price|floatformat:2 }}</strong></p>
+{% block body %}
+<div class="container mt-4">
+    <!-- Search and Filter Section -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <form method="get" class="form-inline">
+                <div class="input-group">
+                    <input type="text" name="search" class="form-control" placeholder="Search products..." value="{{ request.GET.search }}">
+                    <div class="input-group-append">
+                        <button class="btn btn-outline-secondary" type="submit">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="col-md-6">
+            <form method="get" class="form-inline float-md-right">
+                <div class="form-group">
+                    <label for="category" class="mr-2">Filter by Category:</label>
+                    <select name="category" id="category" class="form-control" onchange="this.form.submit()">
+                        <option value="">All Categories</option>
+                        {% for category_name, category_slug in categories %}
+                            <option value="{{ category_slug }}" {% if request.GET.category == category_slug %}selected{% endif %}>
+                                {{ category_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
         </div>
     </div>
-    {% endfor %}
-</div>
 
+    <!-- Products Grid -->
+    <div class="row">
+        {% for product in products %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100">
+                <a href="{% url 'store:product_detail' product.slug %}">
+                    <img class="card-img-top" src="{{ product.image.url }}" alt="{{ product.name }}">
+                </a>
+                <div class="card-body">
+                    <h4 class="card-title">
+                        <a href="{% url 'store:product_detail' product.slug %}">{{ product.name }}</a>
+                    </h4>
+                    <h5>
+                        ${{ product.get_discounted_price|floatformat:2 }}
+                        {% if product.discount.all %}
+                            <small class="text-danger">
+                                <del>${{ product.price|floatformat:2 }}</del>
+                            </small>
+                        {% endif %}
+                    </h5>
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="rating">
+                            {% for i in "12345"|make_list %}
+                                {% if forloop.counter <= product.rating %}
+                                    <i class="fas fa-star text-warning"></i>
+                                {% else %}
+                                    <i class="far fa-star text-warning"></i>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        <small class="text-muted ml-2">({{ product.num_reviews }})</small>
+                    </div>
+                    <p class="card-text">{{ product.description|truncatewords:20 }}</p>
+                </div>
+                <div class="card-footer">
+                    {% if product.stock > 0 %}
+                        <button data-product="{{ product.id }}" data-action="add" class="btn btn-primary add-btn update-cart">
+                            Add to Cart
+                        </button>
+                    {% else %}
+                        <button class="btn btn-secondary" disabled>Out of Stock</button>
+                    {% endif %}
+                    <a href="{% url 'store:product_detail' product.slug %}" class="btn btn-outline-secondary">View Details</a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                No products found matching your search criteria.
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}" aria-label="First">
+                        <span aria-hidden="true">&laquo;&laquo;</span>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}" aria-label="Next">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}" aria-label="Last">
+                        <span aria-hidden="true">&raquo;&raquo;</span>
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
 {% endblock %}
