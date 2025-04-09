@@ -1,14 +1,24 @@
 from django.urls import path
-
-from . import views
+from .views import (
+    ProductListView,
+    ProductDetailView,
+    CartView,
+    CheckoutView,
+    UpdateCartView,
+    ProcessOrderView,
+    AddReviewView,
+    ShippingInfoView
+)
 
 app_name = "store"
 
 urlpatterns = [
-    path("", views.store, name="store"),
-    path("cart/", views.cart, name="cart"),
-    path("checkout/", views.checkout, name="checkout"),
-    path('update_item/', views.updateItem, name="update_item"),
-    path('process_order/', views.processOrder, name="process_order"),
-
+    path('', ProductListView.as_view(), name='store'),
+    path('product/<slug:slug>/', ProductDetailView.as_view(), name='product_detail'),
+    path('cart/', CartView.as_view(), name='cart'),
+    path('checkout/', CheckoutView.as_view(), name='checkout'),
+    path('update_item/', UpdateCartView.as_view(), name='update_item'),
+    path('process_order/', ProcessOrderView.as_view(), name='process_order'),
+    path('product/<slug:slug>/review/', AddReviewView.as_view(), name='add_review'),
+    path('shipping_info/', ShippingInfoView.as_view(), name='shipping_info'),
 ]
