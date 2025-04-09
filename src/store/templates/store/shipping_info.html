@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    | Shipping Information
+{% endblock %}
+
+{% block body %}
+<div class="container mt-4">
+    <h2>Shipping Information</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">Save Shipping Info</button>
+    </form>
+</div>
+{% endblock %}
