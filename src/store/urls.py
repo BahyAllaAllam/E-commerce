@@ -7,7 +7,10 @@ from .views import (
     UpdateCartView,
     ProcessOrderView,
     AddReviewView,
-    ShippingInfoView
+    ShippingInfoView,
+    PayPalPaymentView,
+    PaymentSuccessView,
+    PaymentCancelledView
 )
 
 app_name = "store"
@@ -21,4 +24,7 @@ urlpatterns = [
     path('process_order/', ProcessOrderView.as_view(), name='process_order'),
     path('product/<slug:slug>/review/', AddReviewView.as_view(), name='add_review'),
     path('shipping_info/', ShippingInfoView.as_view(), name='shipping_info'),
+    path('paypal_payment/', PayPalPaymentView.as_view(), name='paypal_payment'),
+    path('payment_success/', PaymentSuccessView.as_view(), name='payment_success'),
+    path('payment_cancelled/', PaymentCancelledView.as_view(), name='payment_cancelled'),
 ]
