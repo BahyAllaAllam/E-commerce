@@ -114,11 +114,15 @@
                     </button>
                 {% endif %}
             </div>
+            
+            <h4>Payment Information</h4>
+            <button id="paypal-button" class="btn btn-primary">Pay with PayPal</button>
         </div>
     </div>
 </div>
 {% endblock body %}
 {% block extra_js %}
+<script src="https://www.paypal.com/sdk/js?client-id={{ PAYPAL_CLIENT_ID }}"></script>
 <script>
     document.getElementById('process-order').addEventListener('click', function() {
         const orderData = {
@@ -156,5 +160,46 @@
             alert('An error occurred while processing your order.');
         });
     });
+    paypal.Buttons({
+        createOrder: function(data, actions) {
+            return fetch('/store/paypal_payment/', {
+                method: 'post',
+                headers: {
+                    'content-type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    order_id: '{{ order.id }}'  // Pass the order ID
+                })
+            }).then(function(res) {
+                return res.json();
+            }).then(function(data) {
+                return data.payment_id;  // Return the payment ID
+            });
+        },
+        onApprove: function(data, actions) {
+            return fetch('/store/payment_success/', {
+                method: 'get',
+                headers: {
+                    'content-type': 'application/json'
+                },
+                body: JSON.stringify({
+                    paymentId: data.paymentID,
+                    PayerID: data.payerID
+                })
+            }).then(function(res) {
+                return res.json();
+            }).then(function(data) {
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    window.location.href = '/store/order_confirmation/' + data.order_id;
+                }
+            });
+        },
+        onCancel: function(data) {
+            window.location.href = '/store/payment_cancelled/';
+        }
+    }).render('#paypal-button');
 </script>
 {% endblock extra_js %}
