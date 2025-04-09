@@ -27,4 +27,5 @@ urlpatterns = [
     path('paypal_payment/', PayPalPaymentView.as_view(), name='paypal_payment'),
     path('payment_success/', PaymentSuccessView.as_view(), name='payment_success'),
     path('payment_cancelled/', PaymentCancelledView.as_view(), name='payment_cancelled'),
+    path('api/', include('store.api')),  # Include the API URLs
 ]
