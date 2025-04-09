@@ -12,6 +12,8 @@ from django.views.decorators.cache import cache_page
 from store.models import Product, Order, OrderItem, ShippingInfo, Review, Category
 from store.forms import ReviewForm, ShippingInfoForm
 import datetime
+import paypalrestsdk
+from django.conf import settings
 
 
 class ProductListView(ListView):
@@ -56,7 +58,7 @@ class ProductDetailView(DetailView):
     template_name = 'store/product_detail.html'
     context_object_name = 'product'
     slug_field = 'slug'
-    slug_url_kwarg = 'slug'
+    slug_url_arg = 'slug'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -215,3 +217,75 @@ class ShippingInfoView(LoginRequiredMixin, CreateView):
 
     def get_success_url(self):
         return self.request.META.get('HTTP_REFERER', '/')
+
+
+class PayPalPaymentView(LoginRequiredMixin, View):
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            order_id = data['order_id']
+            order = get_object_or_404(Order, id=order_id, customer=request.user)
+
+            # Set up PayPal SDK
+            paypalrestsdk.configure({
+                "mode": settings.PAYPAL_MODE,
+                "client_id": settings.PAYPAL_CLIENT_ID,
+                "client_secret": settings.PAYPAL_CLIENT_SECRET
+            })
+
+            # Create a payment
+            payment = paypalrestsdk.Payment({
+                "intent": "sale",
+                "payer": {
+                    "payment_method": "paypal"
+                },
+                "redirect_urls": {
+                    "return_url": "http://localhost:8000/store/payment_success/",
+                    "cancel_url": "http://localhost:8000/store/payment_cancelled/"
+                },
+                "transactions": [{
+                    "item_list": {
+                        "items": [{
+                            "name": f'Order {order.id}',
+                            "sku": "item",
+                            "price": str(order.get_total_price_for_order()),
+                            "currency": "USD",
+                            "quantity": 1
+                        }]
+                    },
+                    "amount": {
+                        "total": str(order.get_total_price_for_order()),
+                        "currency": "USD"
+                    },
+                    "description": f'Payment for Order {order.id}'
+                }]
+            })
+
+            if payment.create():
+                return JsonResponse({'payment_id': payment.id, 'approval_url': payment.links[1].href})
+            else:
+                return JsonResponse({'error': payment.error}, status=400)
+
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+
+class PaymentSuccessView(LoginRequiredMixin, View):
+    def get(self, request):
+        payment_id = request.GET.get('paymentId')
+        payer_id = request.GET.get('PayerID')
+
+        payment = paypalrestsdk.Payment.find(payment_id)
+        if payment.execute({"payer_id": payer_id}):
+            # Update order payment status
+            order = get_object_or_404(Order, id=payment.transactions[0].description.split(' ')[-1])
+            order.payment_status = 'Paid'
+            order.save()
+            return JsonResponse({'message': 'Payment successful', 'order_id': order.id})
+        else:
+            return JsonResponse({'error': 'Payment execution failed'}, status=400)
+
+
+class PaymentCancelledView(LoginRequiredMixin, View):
+    def get(self, request):
+        return JsonResponse({'message': 'Payment was cancelled'})
