@@ -1,43 +1,55 @@
+import os
+from pathlib import Path
+
+from PIL import Image
 from django.db import models
 from django.contrib.auth.models import User
-from pathlib import Path
-import os
-from PIL import Image
-# from store.models import Discount
+from django.core.validators import FileExtensionValidator
 
-
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 def change_users_images_name(instance, filename):
-    """Helper function to change the name of the users image."""
-    ext = filename.split(".")[-1]
+    """
+    Rename uploaded profile images and remove any old image for this user.
+    Safely handles the case where the profile/ directory doesn't exist yet.
+    """
+    ext = filename.split('.')[-1]
     folder = BASE_DIR / 'media' / 'profile'
-    img_list = os.listdir(folder)
-    for img in img_list:
-        if str(instance.user) in img:
-            os.remove(folder / img)
+
+    # Guard: directory may not exist on first upload
+    if folder.exists():
+        for img in os.listdir(folder):
+            if str(instance.user) in img:
+                try:
+                    os.remove(folder / img)
+                except FileNotFoundError:
+                    pass  # Already gone — that's fine
 
     return f'profile/{instance.user}.{ext}'
 
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    image = models.ImageField(upload_to=change_users_images_name, default='profile/default.jpg')
+    image = models.ImageField(
+        upload_to=change_users_images_name,
+        default='profile/default.jpg',
+        validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png'])],
+    )
 
     def __str__(self):
         return f'{self.user.username} Profile'
 
     def save(self, *args, **kwargs):
-        """Override the save method to change the image dimensions."""
+        """Resize oversized profile images to max 300×300 after saving."""
         super().save(*args, **kwargs)
-        img = Image.open(self.image.path)
-        rgb_img = img.convert('RGB')
-        if rgb_img.height > 300 or rgb_img.width > 300:
-            output_size = (300, 300)
-            rgb_img.thumbnail(output_size)
-            rgb_img.save(self.image.path)
+        try:
+            img = Image.open(self.image.path)
+            if img.height > 300 or img.width > 300:
+                img.thumbnail((300, 300))
+                img.convert('RGB').save(self.image.path)
+        except (FileNotFoundError, OSError):
+            pass  # Image may not exist on disk (e.g. in tests)
 
     def full_name(self):
-        return f"{self.user.first_name} {self.user.last_name}"
+        return f'{self.user.first_name} {self.user.last_name}'.strip()

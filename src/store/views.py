@@ -1,20 +1,36 @@
 import json
-from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
-from django.shortcuts import render, get_object_or_404
-from django.views.generic import ListView, DetailView, View, CreateView
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.cache import cache
-from django.core.paginator import Paginator
-from django.db.models import Q
-from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
-from store.models import Product, Order, OrderItem, ShippingInfo, Review, Category
-from store.forms import ReviewForm, ShippingInfoForm
-import datetime
+import uuid
+from decimal import Decimal, InvalidOperation
+
 import paypalrestsdk
 from django.conf import settings
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.cache import cache
+from django.db import transaction
+from django.db.models import Q
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, render
+from django.views.generic import ListView, DetailView, View, CreateView
 
+from store.forms import ReviewForm, ShippingInfoForm
+from store.models import Category, Order, OrderItem, Product, ShippingInfo
+
+
+# ---------------------------------------------------------------------------
+# Helper
+# ---------------------------------------------------------------------------
+
+def get_active_order(user):
+    """Return (order, created) for the user's current open cart."""
+    return Order.objects.get_or_create(
+        customer=user,
+        complete=False,
+        defaults={'transaction_id': str(uuid.uuid4())}
+    )
+
+# ---------------------------------------------------------------------------
+# Store views
+# ---------------------------------------------------------------------------
 
 class ProductListView(ListView):
     model = Product
@@ -24,29 +40,24 @@ class ProductListView(ListView):
 
     def get_queryset(self):
         queryset = Product.objects.select_related('category').prefetch_related('reviews')
-        
-        # Filter by category if provided
+
         category_slug = self.request.GET.get('category')
         if category_slug:
             queryset = queryset.filter(category__slug=category_slug)
-        
-        # Search functionality
+
         search_query = self.request.GET.get('search')
         if search_query:
             queryset = queryset.filter(
-                Q(name__icontains=search_query) |
-                Q(description__icontains=search_query)
+                Q(name__icontains=search_query) | Q(description__icontains=search_query)
             )
-        
         return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Add categories to the context
         context['categories'] = Category.objects.values_list('name', 'slug').distinct()
-        
+
         if self.request.user.is_authenticated:
-            order, created = Order.objects.get_or_create(customer=self.request.user, complete=False)
+            order, _ = get_active_order(self.request.user)
             context['cartItems'] = order.get_cart_items
         else:
             context['cartItems'] = 0
@@ -58,14 +69,15 @@ class ProductDetailView(DetailView):
     template_name = 'store/product_detail.html'
     context_object_name = 'product'
     slug_field = 'slug'
-    slug_url_arg = 'slug'
+    slug_url_kwarg = 'slug'  # Fixed: was slug_url_arg (typo)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['review_form'] = ReviewForm()
         context['reviews'] = self.object.reviews.select_related('user').all()
+
         if self.request.user.is_authenticated:
-            order, created = Order.objects.get_or_create(customer=self.request.user, complete=False)
+            order, _ = get_active_order(self.request.user)
             context['cartItems'] = order.get_cart_items
         else:
             context['cartItems'] = 0
@@ -74,21 +86,23 @@ class ProductDetailView(DetailView):
 
 class CartView(LoginRequiredMixin, View):
     def get(self, request):
-        order, created = Order.objects.get_or_create(customer=request.user, complete=False)
+        order, _ = get_active_order(request.user)
         order_items = order.orderitem_set.select_related('product').all()
         context = {
             'order': order,
             'order_items': order_items,
-            'cartItems': order.get_cart_items
+            'cartItems': order.get_cart_items,
         }
         return render(request, 'store/cart.html', context)
 
 
 class CheckoutView(LoginRequiredMixin, View):
     def get(self, request):
-        order, created = Order.objects.get_or_create(customer=request.user, complete=False)
+        order, _ = get_active_order(request.user)
         order_items = order.orderitem_set.select_related('product').all()
-        shipping_info = ShippingInfo.objects.filter(customer=request.user, is_default=True).first()
+        shipping_info = ShippingInfo.objects.filter(
+            customer=request.user, is_default=True
+        ).first()
         context = {
             'order': order,
             'order_items': order_items,
@@ -104,106 +118,97 @@ class UpdateCartView(LoginRequiredMixin, View):
             data = json.loads(request.body)
             product_id = data['productId']
             action = data['action']
+        except (json.JSONDecodeError, KeyError):
+            return JsonResponse({'error': 'Invalid request data'}, status=400)
 
-            product = get_object_or_404(Product, id=product_id)
-            order, created = Order.objects.get_or_create(customer=request.user, complete=False)
-            order_item, created = OrderItem.objects.get_or_create(order=order, product=product)
+        product = get_object_or_404(Product, id=product_id)
+        order, _ = get_active_order(request.user)
+        order_item, _ = OrderItem.objects.get_or_create(order=order, product=product)
 
-            if action == 'add':
-                if product.stock > order_item.quantity:
-                    order_item.quantity += 1
-                else:
-                    return JsonResponse({'error': 'Not enough stock available'}, status=400)
-            elif action == 'remove':
-                order_item.quantity -= 1
+        if action == 'add':
+            if product.stock <= order_item.quantity:
+                return JsonResponse({'error': 'Not enough stock available'}, status=400)
+            order_item.quantity += 1
+        elif action == 'remove':
+            order_item.quantity -= 1
+        else:
+            return JsonResponse({'error': 'Unknown action'}, status=400)
 
-            if order_item.quantity <= 0:
-                order_item.delete()
-            else:
-                order_item.save()
+        if order_item.quantity <= 0:
+            order_item.delete()
+        else:
+            order_item.save()
 
-            return JsonResponse({
-                'message': 'Cart updated successfully',
-                'cartItems': order.get_cart_items,
-                'cartTotal': order.get_cart_total
-            })
-
-        except json.JSONDecodeError:
-            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
-        except KeyError:
-            return JsonResponse({'error': 'Missing required fields'}, status=400)
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+        return JsonResponse({
+            'message': 'Cart updated successfully',
+            'cartItems': order.get_cart_items,
+            'cartTotal': str(order.get_cart_total),
+        })
 
 
 class ProcessOrderView(LoginRequiredMixin, View):
     def post(self, request):
         try:
             data = json.loads(request.body)
-            transaction_id = datetime.datetime.now().timestamp()
+            client_total = Decimal(str(data['form']['total']))
+        except (json.JSONDecodeError, KeyError, InvalidOperation):
+            return JsonResponse({'error': 'Invalid request data'}, status=400)
 
-            order, created = Order.objects.get_or_create(customer=request.user, complete=False)
-            total = float(data['form']['total'])
+        order, _ = get_active_order(request.user)
 
-            if total == order.get_cart_total:
-                order.transaction_id = transaction_id
-                order.complete = True
-                order.save()
+        # Security: recalculate server-side and compare using Decimal
+        server_total = order.get_cart_total
+        if client_total != server_total:
+            return JsonResponse({'error': 'Total amount mismatch'}, status=400)
 
-                if order.shipping:
-                    ShippingInfo.objects.create(
-                        customer=request.user,
-                        country=data['shipping']['country'],
-                        city=data['shipping']['city'],
-                        state=data['shipping']['state'],
-                        zipcode=data['shipping']['zipcode'],
-                        address=data['shipping']['address'],
-                        phone=data['shipping']['phone']
-                    )
+        with transaction.atomic():
+            # Use a secure random transaction ID
+            order.transaction_id = str(uuid.uuid4())
+            order.complete = True
+            order.save()
+            order.refresh_from_db()
 
-                # Update product stock
-                for item in order.orderitem_set.all():
-                    product = item.product
-                    product.stock -= item.quantity
-                    product.save()
+            # Save shipping info if provided and order needs it
+            shipping_data = data.get('shipping')
+            if order.shipping_info is None and shipping_data:  # Fixed: was order.shipping
+                ShippingInfo.objects.create(
+                    customer=request.user,
+                    country=shipping_data['country'],
+                    city=shipping_data['city'],
+                    state=shipping_data['state'],
+                    zipcode=shipping_data['zipcode'],
+                    address=shipping_data['address'],
+                    phone=shipping_data['phone'],
+                )
 
-                return JsonResponse({
-                    'message': 'Order processed successfully',
-                    'order_id': order.id
-                })
-            else:
-                return JsonResponse({'error': 'Total amount mismatch'}, status=400)
+            # Bulk-update stock instead of saving one product at a time
+            products_to_update = []
+            for item in order.orderitem_set.select_related('product').all():
+                item.product.stock -= item.quantity
+                products_to_update.append(item.product)
+            Product.objects.bulk_update(products_to_update, ['stock'])
 
-        except json.JSONDecodeError:
-            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
-        except KeyError:
-            return JsonResponse({'error': 'Missing required fields'}, status=400)
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+        return JsonResponse({'message': 'Order processed successfully', 'order_id': order.id})
 
 
 class AddReviewView(LoginRequiredMixin, View):
     def post(self, request, slug):
-        try:
-            product = get_object_or_404(Product, slug=slug)
-            form = ReviewForm(request.POST)
-            
-            if form.is_valid():
-                review = form.save(commit=False)
-                review.product = product
-                review.user = request.user
-                review.save()
-                
-                return JsonResponse({
-                    'message': 'Review added successfully',
-                    'rating': product.rating,
-                    'num_reviews': product.num_reviews
-                })
-            else:
-                return JsonResponse({'error': form.errors}, status=400)
-                
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+        product = get_object_or_404(Product, slug=slug)
+        form = ReviewForm(request.POST)
+
+        if form.is_valid():
+            review = form.save(commit=False)
+            review.product = product
+            review.user = request.user
+            review.save()
+            # Re-fetch updated values after update_rating()
+            product.refresh_from_db()
+            return JsonResponse({
+                'message': 'Review added successfully',
+                'rating': str(product.rating),
+                'num_reviews': product.num_reviews,
+            })
+        return JsonResponse({'error': form.errors}, status=400)
 
 
 class ShippingInfoView(LoginRequiredMixin, CreateView):
@@ -219,55 +224,60 @@ class ShippingInfoView(LoginRequiredMixin, CreateView):
         return self.request.META.get('HTTP_REFERER', '/')
 
 
+# ---------------------------------------------------------------------------
+# PayPal views
+# ---------------------------------------------------------------------------
+
+def _configure_paypal():
+    paypalrestsdk.configure({
+        'mode': settings.PAYPAL_MODE,
+        'client_id': settings.PAYPAL_CLIENT_ID,
+        'client_secret': settings.PAYPAL_CLIENT_SECRET,
+    })
+
+
 class PayPalPaymentView(LoginRequiredMixin, View):
     def post(self, request):
         try:
             data = json.loads(request.body)
             order_id = data['order_id']
-            order = get_object_or_404(Order, id=order_id, customer=request.user)
+        except (json.JSONDecodeError, KeyError):
+            return JsonResponse({'error': 'Invalid request data'}, status=400)
 
-            # Set up PayPal SDK
-            paypalrestsdk.configure({
-                "mode": settings.PAYPAL_MODE,
-                "client_id": settings.PAYPAL_CLIENT_ID,
-                "client_secret": settings.PAYPAL_CLIENT_SECRET
-            })
+        order = get_object_or_404(Order, id=order_id, customer=request.user)
+        _configure_paypal()
 
-            # Create a payment
-            payment = paypalrestsdk.Payment({
-                "intent": "sale",
-                "payer": {
-                    "payment_method": "paypal"
+        # Use request.build_absolute_uri — no more hardcoded localhost
+        return_url = request.build_absolute_uri('/store/payment_success/')
+        cancel_url = request.build_absolute_uri('/store/payment_cancelled/')
+        total = str(order.get_total_price_for_order)  # property, no ()
+
+        payment = paypalrestsdk.Payment({
+            'intent': 'sale',
+            'payer': {'payment_method': 'paypal'},
+            'redirect_urls': {'return_url': return_url, 'cancel_url': cancel_url},
+            'transactions': [{
+                'item_list': {
+                    'items': [{
+                        'name': f'Order {order.id}',
+                        'sku': 'item',
+                        'price': total,
+                        'currency': 'USD',
+                        'quantity': 1,
+                    }]
                 },
-                "redirect_urls": {
-                    "return_url": "http://localhost:8000/store/payment_success/",
-                    "cancel_url": "http://localhost:8000/store/payment_cancelled/"
-                },
-                "transactions": [{
-                    "item_list": {
-                        "items": [{
-                            "name": f'Order {order.id}',
-                            "sku": "item",
-                            "price": str(order.get_total_price_for_order()),
-                            "currency": "USD",
-                            "quantity": 1
-                        }]
-                    },
-                    "amount": {
-                        "total": str(order.get_total_price_for_order()),
-                        "currency": "USD"
-                    },
-                    "description": f'Payment for Order {order.id}'
-                }]
-            })
+                'amount': {'total': total, 'currency': 'USD'},
+                'description': f'Payment for Order {order.id}',
+            }],
+        })
 
-            if payment.create():
-                return JsonResponse({'payment_id': payment.id, 'approval_url': payment.links[1].href})
-            else:
-                return JsonResponse({'error': payment.error}, status=400)
-
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+        if payment.create():
+            approval_url = next(
+                (link.href for link in payment.links if link.rel == 'approval_url'),
+                None,
+            )
+            return JsonResponse({'payment_id': payment.id, 'approval_url': approval_url})
+        return JsonResponse({'error': payment.error}, status=400)
 
 
 class PaymentSuccessView(LoginRequiredMixin, View):
@@ -275,15 +285,22 @@ class PaymentSuccessView(LoginRequiredMixin, View):
         payment_id = request.GET.get('paymentId')
         payer_id = request.GET.get('PayerID')
 
+        _configure_paypal()
         payment = paypalrestsdk.Payment.find(payment_id)
-        if payment.execute({"payer_id": payer_id}):
-            # Update order payment status
-            order = get_object_or_404(Order, id=payment.transactions[0].description.split(' ')[-1])
+
+        if payment.execute({'payer_id': payer_id}):
+            # Parse order ID safely from description
+            try:
+                order_id = int(payment.transactions[0].description.split()[-1])
+            except (IndexError, ValueError):
+                return JsonResponse({'error': 'Could not parse order ID'}, status=400)
+
+            order = get_object_or_404(Order, id=order_id, customer=request.user)
             order.payment_status = 'Paid'
             order.save()
             return JsonResponse({'message': 'Payment successful', 'order_id': order.id})
-        else:
-            return JsonResponse({'error': 'Payment execution failed'}, status=400)
+
+        return JsonResponse({'error': 'Payment execution failed'}, status=400)
 
 
 class PaymentCancelledView(LoginRequiredMixin, View):
